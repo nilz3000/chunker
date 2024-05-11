@@ -314,7 +314,27 @@ func (c *Chunker) SetAverageBits(averageBits int) {
 // Reset reinitializes the chunker with a new reader, polynomial, and options.
 func (c *Chunker) Reset(rd io.Reader, pol Pol, opts ...option) {
 	opts = append([]option{WithBuffer(c.buf)}, opts...)
-	*c = *New(rd, pol, opts...)
+	*c = Chunker{
+		BaseChunker: BaseChunker{
+			chunkerState: chunkerState{},
+			chunkerConfig: chunkerConfig{
+				pol:       pol,
+				MinSize:   MinSize,
+				MaxSize:   MaxSize,
+				splitmask: (1 << 20) - 1, // aim to create chunks of 20 bits or about 1MiB on average.
+			},
+		},
+		chunkerBuffer: chunkerBuffer{
+			buf: c.buf,
+			rd:  rd,
+		},
+	}
+
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	c.reset()
 }
 
 // Deprecated: ResetWithBoundaries uses should be replaced by Reset(rd, pol, WithBoundaries(min, max)).
